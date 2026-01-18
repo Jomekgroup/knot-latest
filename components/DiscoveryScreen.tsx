@@ -21,7 +21,7 @@ const DiscoveryScreen: React.FC<DiscoveryScreenProps> = ({ matches, user, onMatc
   }, [matches, user]);
 
   return (
-    <div className="p-0 pb-24 bg-gray-50 min-h-screen">
+    <div className="p-0 pb-24 bg-gray-50 dark:bg-brand-dark min-h-screen transition-colors">
       <div className="p-4 pt-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {processedMatches.map((match) => {
@@ -31,7 +31,7 @@ const DiscoveryScreen: React.FC<DiscoveryScreenProps> = ({ matches, user, onMatc
               <div
                 key={match.id}
                 onClick={() => onMatchClick(match)}
-                className="relative aspect-[3/4] bg-white rounded-[1.5rem] overflow-hidden cursor-pointer group shadow-sm active:scale-95 transition-all hover:shadow-xl border border-gray-100"
+                className="relative aspect-[3/4] bg-white dark:bg-gray-800 rounded-[1.5rem] overflow-hidden cursor-pointer group shadow-sm active:scale-95 transition-all hover:shadow-xl border border-gray-100 dark:border-gray-700"
               >
                 <img
                   src={profileImage}
@@ -58,8 +58,8 @@ const DiscoveryScreen: React.FC<DiscoveryScreenProps> = ({ matches, user, onMatc
         </div>
         
         {processedMatches.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-32 text-center px-8 bg-white rounded-[2.5rem] mt-4 border border-dashed border-gray-200">
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Updating directory records...</p>
+          <div className="flex flex-col items-center justify-center py-32 text-center px-8 bg-white dark:bg-gray-900 rounded-[2.5rem] mt-4 border border-dashed border-gray-200 dark:border-gray-800">
+            <p className="text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest text-xs">Updating directory records...</p>
           </div>
         )}
       </div>

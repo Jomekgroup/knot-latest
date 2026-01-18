@@ -20,9 +20,9 @@ interface ProfileSectionProps {
 }
 
 const ProfileSection: React.FC<ProfileSectionProps> = ({ title, children }) => (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-gray-100 dark:border-gray-800 last:border-0">
         <div className="py-5 text-left">
-            <h3 className="font-black text-lg text-brand-dark uppercase tracking-tight">{title}</h3>
+            <h3 className="font-black text-lg text-brand-dark dark:text-white uppercase tracking-tight">{title}</h3>
         </div>
         <div className="pb-6 space-y-5 animate-fade-in">
             {children}
@@ -32,9 +32,9 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({ title, children }) => (
 
 const ProfileDataItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
     <div className="space-y-1">
-        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{label}</p>
-        <div className="text-sm text-black font-medium leading-relaxed">
-            {value || <span className="text-gray-300 italic">Not specified</span>}
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest">{label}</p>
+        <div className="text-sm text-black dark:text-gray-200 font-medium leading-relaxed">
+            {value || <span className="text-gray-300 dark:text-gray-600 italic">Not specified</span>}
         </div>
     </div>
 );
@@ -45,7 +45,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
   const isAdmin = user.id === 'user_0';
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white dark:bg-brand-dark min-h-screen transition-colors">
         <div className="relative">
             <img className="h-64 w-full object-cover" src={user.profileImageUrls[0]} alt={user.name} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -67,22 +67,22 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
         <div className="px-6 pb-24">
             {/* Quick Actions */}
             <div className="flex justify-around items-center text-center -mt-8 mb-10 relative z-20">
-                 <button onClick={onManagePhotos} className="flex flex-col items-center justify-center bg-white rounded-2xl shadow-xl w-20 h-20 text-gray-400 hover:text-brand-primary transition-all active:scale-95 border border-gray-100">
+                 <button onClick={onManagePhotos} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-20 h-20 text-gray-400 dark:text-gray-500 hover:text-brand-primary dark:hover:text-brand-accent transition-all active:scale-95 border border-gray-100 dark:border-gray-700">
                     <CameraIcon className="w-6 h-6 mb-1" />
                     <span className="text-[8px] font-black uppercase tracking-widest">Gallery</span>
                 </button>
-                 <button onClick={onEditProfile} className="flex flex-col items-center justify-center bg-brand-primary rounded-3xl shadow-2xl w-28 h-28 text-white hover:bg-brand-secondary transition-all active:scale-95 scale-110">
+                 <button onClick={onEditProfile} className="flex flex-col items-center justify-center bg-brand-primary dark:bg-brand-accent rounded-3xl shadow-2xl w-28 h-28 text-white dark:text-brand-dark hover:bg-brand-secondary dark:hover:bg-brand-accent/90 transition-all active:scale-95 scale-110">
                     <PencilIcon className="w-8 h-8 mb-1" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Edit Profile</span>
                 </button>
                  <button 
                     onClick={onVerifyProfile} 
                     disabled={user.isVerified} 
-                    className={`flex flex-col items-center justify-center bg-white rounded-2xl shadow-xl w-20 h-20 transition-all active:scale-95 border ${user.isVerified ? 'border-green-500 bg-green-50' : 'border-gray-100 overflow-hidden'}`}
+                    className={`flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-20 h-20 transition-all active:scale-95 border ${user.isVerified ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-100 dark:border-gray-700 overflow-hidden'}`}
                 >
                     {!user.isVerified && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-accent/30 to-transparent animate-shimmer pointer-events-none"></div>}
-                    {user.isVerified ? <VerifiedIcon className="w-6 h-6 mb-1 text-green-600" /> : <ShieldCheckIcon className="w-6 h-6 mb-1 text-brand-secondary" />}
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${user.isVerified ? 'text-green-600' : 'text-gray-400'}`}>
+                    {user.isVerified ? <VerifiedIcon className="w-6 h-6 mb-1 text-green-600 dark:text-green-400" /> : <ShieldCheckIcon className="w-6 h-6 mb-1 text-brand-secondary dark:text-gray-500" />}
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${user.isVerified ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                         {user.isVerified ? 'Verified' : 'Verify ID'}
                     </span>
                 </button>
@@ -93,7 +93,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
                 <div className="mb-8 animate-fade-in">
                     <button 
                         onClick={onOpenAdmin}
-                        className="w-full flex items-center justify-center gap-3 bg-brand-dark text-white p-5 rounded-[2rem] shadow-xl hover:bg-black transition-all active:scale-[0.98] border border-white/10"
+                        className="w-full flex items-center justify-center gap-3 bg-brand-dark dark:bg-gray-900 text-white p-5 rounded-[2rem] shadow-xl hover:bg-black transition-all active:scale-[0.98] border border-white/10"
                     >
                         <ShieldCheckIcon className="w-6 h-6 text-brand-accent" />
                         <span className="font-black uppercase tracking-widest text-sm text-brand-accent">Registry Command Center</span>
@@ -109,9 +109,9 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
                         <ProfileDataItem label="Occupation" value={user.occupation} />
                     </div>
                     
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
                         <div className="space-y-2">
-                            <h4 className="text-[9px] font-black text-brand-primary uppercase tracking-widest">Current Residence</h4>
+                            <h4 className="text-[9px] font-black text-brand-primary dark:text-brand-accent uppercase tracking-widest">Current Residence</h4>
                             <div className="grid grid-cols-3 gap-2">
                                 <ProfileDataItem label="Country" value={user.residenceCountry} />
                                 <ProfileDataItem label="State" value={user.residenceState} />
@@ -119,10 +119,10 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
                             </div>
                         </div>
                         
-                        <div className="h-[1px] bg-gray-200 w-full"></div>
+                        <div className="h-[1px] bg-gray-200 dark:bg-gray-800 w-full"></div>
                         
                         <div className="space-y-2">
-                            <h4 className="text-[9px] font-black text-brand-primary uppercase tracking-widest">Heritage & Origin</h4>
+                            <h4 className="text-[9px] font-black text-brand-primary dark:text-brand-accent uppercase tracking-widest">Heritage & Origin</h4>
                             <div className="grid grid-cols-3 gap-2">
                                 <ProfileDataItem label="Country" value={user.originCountry} />
                                 <ProfileDataItem label="State" value={user.originState} />
@@ -152,7 +152,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
                         <div className="flex flex-wrap gap-2 mt-2">
                             {user.personalValues.length > 0 ? (
                                 user.personalValues.map(v => (
-                                    <span key={v} className="bg-gray-100 text-gray-700 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+                                    <span key={v} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
                                         {v}
                                     </span>
                                 ))
@@ -171,7 +171,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEditProfile, onManage
                         <div className="flex flex-wrap gap-2 mt-2">
                             {user.idealPartnerTraits.length > 0 ? (
                                 user.idealPartnerTraits.map(t => (
-                                    <span key={t} className="bg-brand-light text-brand-primary text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-brand-primary/10">
+                                    <span key={t} className="bg-brand-light dark:bg-brand-accent/10 text-brand-primary dark:text-brand-accent text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-brand-primary/10 dark:border-brand-accent/20">
                                         {t}
                                     </span>
                                 ))

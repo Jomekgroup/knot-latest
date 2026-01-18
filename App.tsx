@@ -35,8 +35,26 @@ const AppContent: React.FC = () => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem('knot_theme');
+        // Default to light mode (false) if no preference is saved.
+        return saved === 'dark';
+    });
     const { addToast } = useToast();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Sync theme class to HTML element
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('knot_theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('knot_theme', 'light');
+        }
+    }, [isDarkMode]);
+
+    const toggleTheme = () => setIsDarkMode(prev => !prev);
 
     useEffect(() => {
         const loadData = async () => {
@@ -281,16 +299,16 @@ const AppContent: React.FC = () => {
                                 <MatchCard key={match.id} match={match} user={user} onCardClick={handleCardClick} />
                             ))
                         ) : (
-                            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200 m-2">
-                                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs px-10">No matches found in this criteria.</p>
-                                <button onClick={() => setFilters(INITIAL_FILTERS)} className="mt-4 text-brand-primary font-black uppercase text-[10px] tracking-widest underline">Reset Filters</button>
+                            <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 m-2">
+                                <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs px-10">No matches found in this criteria.</p>
+                                <button onClick={() => setFilters(INITIAL_FILTERS)} className="mt-4 text-brand-primary dark:text-brand-accent font-black uppercase text-[10px] tracking-widest underline">Reset Filters</button>
                             </div>
                         )}
                         
                         {isSyncing && (
                             <div className="pt-6 pb-4 flex flex-col items-center">
-                                <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-[10px] font-black uppercase text-brand-primary mt-2">Loading more...</span>
+                                <div className="w-6 h-6 border-2 border-brand-primary dark:border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-[10px] font-black uppercase text-brand-primary dark:text-brand-accent mt-2">Loading more...</span>
                             </div>
                         )}
                     </div>
@@ -328,13 +346,17 @@ const AppContent: React.FC = () => {
     const showBottomNav = ['home', 'discovery', 'likes', 'messages', 'profile'].includes(activeScreen);
 
     return (
-        <div className="max-w-md mx-auto bg-gray-50 min-h-screen font-sans shadow-2xl overflow-x-hidden">
+        <div className="max-w-md mx-auto bg-gray-50 dark:bg-brand-dark min-h-screen font-sans shadow-2xl overflow-x-hidden transition-colors">
             {showHeader && (
                 <div className="fixed top-0 left-0 right-0 max-w-md mx-auto z-50">
-                    <Header onOpenFilters={() => setIsFilterModalOpen(true)} />
+                    <Header 
+                        onOpenFilters={() => setIsFilterModalOpen(true)} 
+                        isDarkMode={isDarkMode} 
+                        toggleTheme={toggleTheme} 
+                    />
                     {isSyncing && (
-                        <div className="h-0.5 w-full bg-brand-light relative overflow-hidden">
-                            <div className="absolute inset-0 bg-brand-primary animate-progress-ind"></div>
+                        <div className="h-0.5 w-full bg-brand-light dark:bg-gray-800 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-brand-primary dark:bg-brand-accent animate-progress-ind"></div>
                         </div>
                     )}
                 </div>
@@ -372,7 +394,6 @@ const AppContent: React.FC = () => {
                     100% { left: 100%; width: 100%; }
                 }
                 .animate-progress-ind { animation: progress-ind 1.5s infinite linear; }
-                body { background-color: #f3f4f6; }
             `}</style>
         </div>
     );

@@ -19,8 +19,8 @@ const NavItem: React.FC<{
   isActive: boolean;
   onClick: (screen: Screen) => void;
 }> = ({ label, screen, icon, isActive, onClick }) => {
-  const activeColor = 'text-brand-primary';
-  const inactiveColor = 'text-gray-400';
+  const activeColor = 'text-brand-primary dark:text-brand-accent';
+  const inactiveColor = 'text-gray-400 dark:text-gray-500';
 
   return (
     <button
@@ -45,7 +45,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onNavigate }) => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-20 bg-white/95 backdrop-blur-md border-t border-gray-100 flex items-center justify-around z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-20 bg-white/95 dark:bg-brand-dark/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 flex items-center justify-around z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-colors">
       {navItems.map(item => (
         <NavItem
           key={item.screen}

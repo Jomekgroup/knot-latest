@@ -34,10 +34,10 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, user, onCardClick }) => {
 
   return (
     <div
-      className="bg-white rounded-[2.5rem] shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl border border-gray-100"
+      className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl border border-gray-100 dark:border-gray-800"
     >
       <div
-        className="relative aspect-square bg-gray-200 cursor-pointer"
+        className="relative aspect-square bg-gray-200 dark:bg-gray-800 cursor-pointer"
         onClick={() => onCardClick(match)}
       >
         <img
@@ -48,7 +48,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, user, onCardClick }) => {
 
         {/* Compatibility Badge - Top Right */}
         <div className="absolute top-4 right-4 z-20">
-            <div className="bg-brand-primary/90 backdrop-blur-md text-brand-accent px-3 py-1.5 rounded-full shadow-lg border border-white/20 flex flex-col items-center">
+            <div className="bg-brand-primary/90 dark:bg-brand-accent/90 backdrop-blur-md text-brand-accent dark:text-brand-primary px-3 py-1.5 rounded-full shadow-lg border border-white/20 dark:border-black/10 flex flex-col items-center">
                 <span className="text-[14px] font-black leading-none">{score}%</span>
                 <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">Match</span>
             </div>
@@ -97,17 +97,17 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, user, onCardClick }) => {
       </div>
 
       <div className="px-6 py-5">
-        <p className="text-xs text-gray-600 italic line-clamp-2 leading-relaxed">
+        <p className="text-xs text-gray-600 dark:text-gray-400 italic line-clamp-2 leading-relaxed">
           "{match.marriageExpectations || match.bio}"
         </p>
         <div className="flex justify-between items-center mt-4">
           <div className="flex flex-col">
-            <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Marriage Timeline</span>
-            <span className="text-[10px] text-brand-primary font-black uppercase tracking-wider">{match.marriageTimeline}</span>
+            <span className="text-[8px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest">Marriage Timeline</span>
+            <span className="text-[10px] text-brand-primary dark:text-brand-accent font-black uppercase tracking-wider">{match.marriageTimeline}</span>
           </div>
           <button 
             onClick={() => onCardClick(match)}
-            className="bg-brand-primary text-white font-black px-6 py-3 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-brand-secondary transition-all shadow-lg active:scale-95"
+            className="bg-brand-primary dark:bg-brand-accent text-white dark:text-brand-dark font-black px-6 py-3 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-brand-secondary transition-all shadow-lg active:scale-95"
           >
             Review Profile
           </button>
