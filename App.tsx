@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Match, Screen, FilterState, SmokingHabits, DrinkingHabits, MaritalStatus, WillingToRelocate, ChildrenPreference } from './types';
 import { INITIAL_FILTERS, CURRENT_USER } from './constants';
@@ -37,13 +36,11 @@ const AppContent: React.FC = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('knot_theme');
-        // Default to light mode (false) if no preference is saved.
         return saved === 'dark';
     });
     const { addToast } = useToast();
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Sync theme class to HTML element
+    // 🌓 Sync theme class to HTML element
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -56,12 +53,28 @@ const AppContent: React.FC = () => {
 
     const toggleTheme = () => setIsDarkMode(prev => !prev);
 
+    // 🔐 Load Data & Persistent Session Check
     useEffect(() => {
         const loadData = async () => {
-            const userData = await db.getUser();
-            const matchesData = await db.getMatches();
-            setUser(userData);
-            setMatches(matchesData);
+            setIsSyncing(true);
+            try {
+                const userData = await db.getUser();
+                const matchesData = await db.getMatches();
+                
+                if (userData && userData.email) {
+                    setUser(userData);
+                    setIsLoggedIn(true);
+                    // Check if they finished onboarding (has images and name)
+                    if (!userData.name || userData.profileImageUrls.length === 0) {
+                        setActiveScreen('onboarding');
+                    }
+                }
+                setMatches(matchesData);
+            } catch (error) {
+                console.error("Registry Load Error", error);
+            } finally {
+                setIsSyncing(false);
+            }
         };
         loadData();
     }, []);
@@ -89,7 +102,6 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const handleScroll = () => {
             if (activeScreen !== 'home') return;
-            
             const scrollHeight = document.documentElement.scrollHeight;
             const scrollTop = document.documentElement.scrollTop;
             const clientHeight = document.documentElement.clientHeight;
@@ -98,62 +110,58 @@ const AppContent: React.FC = () => {
                 fetchMoreFromGlobalRegistry(true);
             }
         };
-
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [activeScreen, isSyncing, fetchMoreFromGlobalRegistry]);
 
-    useEffect(() => {
-        if (isLoggedIn && activeScreen === 'home' && matches.length < 5) {
-            fetchMoreFromGlobalRegistry(true);
-        }
-    }, [isLoggedIn, activeScreen, matches.length, fetchMoreFromGlobalRegistry]);
-
-    const handleLogin = (isNewUser: boolean = false, name?: string, email?: string) => {
-        if (isNewUser) {
-            const newUserTemplate: User = {
-                ...CURRENT_USER,
-                id: `user_${Date.now()}`,
-                name: name || '', 
-                email: email,
-                bio: '',
-                age: 25,
-                isVerified: false,
-                isPremium: false,
-                profileImageUrls: [],
-                personalValues: [],
-                occupation: '',
-                marriageTimeline: '1-2 years',
-                maritalStatus: MaritalStatus.NeverMarried,
-                childrenPreference: ChildrenPreference.OpenToChildren,
-                willingToRelocate: WillingToRelocate.Maybe,
-                residenceCountry: '',
-                residenceState: '',
-                residenceCity: '',
-                originCountry: '',
-                originState: '',
-                originCity: '',
-                culturalBackground: '',
-                city: '',
-                country: ''
-            };
-            setUser(newUserTemplate);
-            db.saveUser(newUserTemplate);
-            setIsLoggedIn(true);
-            setActiveScreen('onboarding');
-        } else {
-            const isAdmin = email === 'admin@knot.ai';
-            if (isAdmin) {
-                setUser(CURRENT_USER);
-                db.saveUser(CURRENT_USER);
-                addToast("Admin Dashboard Authorized", "success");
+    // 🔑 UPDATED AUTHENTICATION LOGIC
+    const handleLogin = async (isNewUser: boolean = false, name?: string, email?: string) => {
+        setIsSyncing(true);
+        
+        try {
+            // 1. Admin Authorization Check
+            if (email === 'admin@knot.ai') {
+                const adminUser = { ...CURRENT_USER, email: 'admin@knot.ai', name: 'Registry Admin' };
+                setUser(adminUser);
+                await db.saveUser(adminUser);
                 setIsLoggedIn(true);
                 setActiveScreen('admin');
-            } else {
-                setIsLoggedIn(true);
-                setActiveScreen('home');
-                addToast("Directory Access Granted", "success");
+                addToast("Registry Admin Authorized", "success");
+                return;
             }
+
+            if (isNewUser) {
+                // 2. Signup / Registry Activation
+                const newUserTemplate: User = {
+                    ...CURRENT_USER,
+                    id: `user_${Date.now()}`,
+                    name: name || '', 
+                    email: email,
+                    isVerified: false,
+                    isPremium: false,
+                    profileImageUrls: [],
+                };
+                setUser(newUserTemplate);
+                await db.saveUser(newUserTemplate);
+                setIsLoggedIn(true);
+                setActiveScreen('onboarding');
+                addToast("Registry Record Created", "success");
+            } else {
+                // 3. Regular Login Check
+                const existingUser = await db.getUser();
+                if (existingUser && existingUser.email === email) {
+                    setUser(existingUser);
+                    setIsLoggedIn(true);
+                    setActiveScreen('home');
+                    addToast("Member Access Granted", "success");
+                } else {
+                    addToast("Member record not found. Please join the registry.", "info");
+                }
+            }
+        } catch (error) {
+            addToast("Authorization Error", "error");
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -209,26 +217,25 @@ const AppContent: React.FC = () => {
         setActiveScreen('payment');
     };
 
-    const handleSubscribe = () => {
+    const handleSubscribe = async () => {
         if (user) {
             const updated: User = { 
                 ...user, 
                 isPremium: true,
                 subscriptionAmount: 7.00,
-                subscriptionDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                subscriptionPeriod: 'Custom'
+                subscriptionDate: new Date().toLocaleDateString(),
             };
             setUser(updated);
-            db.saveUser(updated);
+            await db.saveUser(updated);
         }
-        addToast('Welcome to Premium!', 'success');
+        addToast('Premium Activated!', 'success');
         setActiveScreen('likes'); 
     };
 
-    const handleSaveProfile = (updatedUser: User) => {
+    const handleSaveProfile = async (updatedUser: User) => {
         setUser(updatedUser);
-        db.saveUser(updatedUser);
-        addToast('Directory Updated', 'success');
+        await db.saveUser(updatedUser);
+        addToast('Registry Updated', 'success');
         if (activeScreen === 'onboarding') {
             setActiveScreen('home');
         } else {
@@ -240,24 +247,25 @@ const AppContent: React.FC = () => {
         if (window.confirm("Exit registry activation?")) {
             setIsLoggedIn(false);
             setUser(null);
+            localStorage.removeItem('knot_user'); // Clear session
             setActiveScreen('home');
         }
     };
 
-    const handleVerificationComplete = () => {
+    const handleVerificationComplete = async () => {
         if (user) {
             const updated = {...user, isVerified: true};
             setUser(updated);
-            db.saveUser(updated);
+            await db.saveUser(updated);
         }
         setActiveScreen('profile');
     };
 
-    const handleUpdatePhotos = (photos: string[]) => {
+    const handleUpdatePhotos = async (photos: string[]) => {
         if (user) {
             const updated = {...user, profileImageUrls: photos};
             setUser(updated);
-            db.saveUser(updated);
+            await db.saveUser(updated);
         }
         addToast('Photos Updated', 'success');
         handleBack();
@@ -304,7 +312,6 @@ const AppContent: React.FC = () => {
                                 <button onClick={() => setFilters(INITIAL_FILTERS)} className="mt-4 text-brand-primary dark:text-brand-accent font-black uppercase text-[10px] tracking-widest underline">Reset Filters</button>
                             </div>
                         )}
-                        
                         {isSyncing && (
                             <div className="pt-6 pb-4 flex flex-col items-center">
                                 <div className="w-6 h-6 border-2 border-brand-primary dark:border-brand-accent border-t-transparent rounded-full animate-spin"></div>
@@ -407,8 +414,4 @@ const App: React.FC = () => {
     );
 };
 
-const AppWithAuth: React.FC = () => {
-    return <App />;
-}
-
-export default AppWithAuth;
+export default App;

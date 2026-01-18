@@ -1,10 +1,9 @@
-
 import { User, Match, Message } from '../types';
 import { CURRENT_USER, MATCHES_DATA, LIKED_MATCHES_DATA, MESSAGES_DATA } from '../constants';
 
 const DB_KEYS = {
     USER: 'knot_user_profile',
-    MATCHES: 'knot_matches_v2', // Versioned to avoid old schema conflicts
+    MATCHES: 'knot_matches_v2', 
     LIKES: 'knot_likes',
     MESSAGES: 'knot_messages_history'
 };
@@ -18,9 +17,10 @@ class DatabaseService {
 
     private init() {
         if (this.isInitialized) return;
-        if (!localStorage.getItem(DB_KEYS.USER)) {
-            localStorage.setItem(DB_KEYS.USER, JSON.stringify(CURRENT_USER));
-        }
+        
+        // NOTE: We no longer auto-save CURRENT_USER here. 
+        // This allows handleLogin in App.tsx to detect when someone is truly "New".
+
         if (!localStorage.getItem(DB_KEYS.MATCHES)) {
             localStorage.setItem(DB_KEYS.MATCHES, JSON.stringify(MATCHES_DATA));
         }
@@ -33,27 +33,35 @@ class DatabaseService {
         this.isInitialized = true;
     }
 
-    async getUser(): Promise<User> {
+    async getUser(): Promise<User | null> {
         const raw = localStorage.getItem(DB_KEYS.USER);
-        if (!raw) return CURRENT_USER;
-        const user = JSON.parse(raw);
-        // Migration: Ensure childrenStatus exists for older profiles
-        if (user.childrenStatus === undefined) {
-            user.childrenStatus = "No kids";
-            await this.saveUser(user);
+        if (!raw) return null; // Return null so App.tsx knows to show AuthScreen
+        
+        try {
+            const user = JSON.parse(raw);
+            // Migration: Ensure childrenStatus exists
+            if (user.childrenStatus === undefined) {
+                user.childrenStatus = "No kids";
+                await this.saveUser(user);
+            }
+            return user;
+        } catch (e) {
+            return null;
         }
-        return user;
     }
 
     async saveUser(user: User): Promise<void> {
         localStorage.setItem(DB_KEYS.USER, JSON.stringify(user));
     }
 
+    async clearSession(): Promise<void> {
+        localStorage.removeItem(DB_KEYS.USER);
+    }
+
     async getMatches(): Promise<Match[]> {
         const raw = localStorage.getItem(DB_KEYS.MATCHES);
         if (!raw) return MATCHES_DATA;
         const matches = JSON.parse(raw);
-        // Ensure child status exists for all matches
         return matches.map((m: Match) => ({
             ...m,
             childrenStatus: m.childrenStatus || "No kids"
