@@ -1,36 +1,33 @@
-
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
-    "cors": "https://esm.sh/cors@^2.8.5",
-    "axios": "https://esm.sh/axios@^1.13.2",
-    "express": "https://esm.sh/express@^5.2.1",
-    "crypto": "https://esm.sh/crypto@^1.0.1"
-  }
-}
-</script>
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2285%22>💍</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#4A0D67" />
-    <meta
-      name="description"
-      content="Knot - Matches that lead to vows"
-    />
+    <meta name="description" content="Knot - Matches that lead to vows" />
     <title>Knot</title>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+        "cors": "https://esm.sh/cors@^2.8.5",
+        "axios": "https://esm.sh/axios@^1.13.2",
+        "express": "https://esm.sh/express@^5.2.1",
+        "crypto": "https://esm.sh/crypto@^1.0.1"
+      }
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Paystack Inline Script -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
+    
     <script>
       tailwind.config = {
-        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -49,13 +46,15 @@
         },
       }
     </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        transition: background-color 0.3s ease, color 0.3s ease;
+        background-color: #1E1E24; /* brand-dark */
       }
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
@@ -65,11 +64,11 @@
         scrollbar-width: none;
       }
     </style>
-  <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-gray-50 dark:bg-brand-dark transition-colors">
+<body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
