@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Match, Screen, FilterState, SmokingHabits, DrinkingHabits, MaritalStatus, WillingToRelocate, ChildrenPreference } from './types';
+import { User, Match, Screen, FilterState, MaritalStatus, WillingToRelocate, ChildrenPreference } from './types';
 import { INITIAL_FILTERS, CURRENT_USER } from './constants';
 import { db } from './services/databaseService';
 import { queryGlobalRegistry } from './services/matchingService';
@@ -35,22 +34,28 @@ const AppContent: React.FC = () => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        const saved = localStorage.getItem('knot_theme');
-        // Default to light mode (false) if no preference is saved.
-        return saved === 'dark';
-    });
-    const { addToast } = useToast();
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Sync theme class to HTML element
+    // 1. Unified Theme State Initialization
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved === 'dark';
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        return false;
+    });
+
+    const { addToast } = useToast();
+
+    // 2. Optimized Theme Sync Effect
     useEffect(() => {
+        const root = window.document.documentElement;
         if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('knot_theme', 'dark');
+            root.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
         } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('knot_theme', 'light');
+            root.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
         }
     }, [isDarkMode]);
 
@@ -85,29 +90,17 @@ const AppContent: React.FC = () => {
         }
     }, [isSyncing, addToast]);
 
-    // Infinite Scroll Logic
     useEffect(() => {
         const handleScroll = () => {
             if (activeScreen !== 'home') return;
-            
-            const scrollHeight = document.documentElement.scrollHeight;
-            const scrollTop = document.documentElement.scrollTop;
-            const clientHeight = document.documentElement.clientHeight;
-
+            const { scrollHeight, scrollTop, clientHeight } = document.documentElement;
             if (scrollTop + clientHeight >= scrollHeight - 300 && !isSyncing) {
                 fetchMoreFromGlobalRegistry(true);
             }
         };
-
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [activeScreen, isSyncing, fetchMoreFromGlobalRegistry]);
-
-    useEffect(() => {
-        if (isLoggedIn && activeScreen === 'home' && matches.length < 5) {
-            fetchMoreFromGlobalRegistry(true);
-        }
-    }, [isLoggedIn, activeScreen, matches.length, fetchMoreFromGlobalRegistry]);
 
     const handleLogin = (isNewUser: boolean = false, name?: string, email?: string) => {
         if (isNewUser) {
@@ -116,26 +109,12 @@ const AppContent: React.FC = () => {
                 id: `user_${Date.now()}`,
                 name: name || '', 
                 email: email,
-                bio: '',
-                age: 25,
                 isVerified: false,
                 isPremium: false,
                 profileImageUrls: [],
-                personalValues: [],
-                occupation: '',
-                marriageTimeline: '1-2 years',
                 maritalStatus: MaritalStatus.NeverMarried,
                 childrenPreference: ChildrenPreference.OpenToChildren,
                 willingToRelocate: WillingToRelocate.Maybe,
-                residenceCountry: '',
-                residenceState: '',
-                residenceCity: '',
-                originCountry: '',
-                originState: '',
-                originCity: '',
-                culturalBackground: '',
-                city: '',
-                country: ''
             };
             setUser(newUserTemplate);
             db.saveUser(newUserTemplate);
@@ -304,7 +283,6 @@ const AppContent: React.FC = () => {
                                 <button onClick={() => setFilters(INITIAL_FILTERS)} className="mt-4 text-brand-primary dark:text-brand-accent font-black uppercase text-[10px] tracking-widest underline">Reset Filters</button>
                             </div>
                         )}
-                        
                         {isSyncing && (
                             <div className="pt-6 pb-4 flex flex-col items-center">
                                 <div className="w-6 h-6 border-2 border-brand-primary dark:border-brand-accent border-t-transparent rounded-full animate-spin"></div>
@@ -399,6 +377,7 @@ const AppContent: React.FC = () => {
     );
 };
 
+// ... keep App and AppWithAuth exports as they were
 const App: React.FC = () => {
     return (
         <ToastProvider>
@@ -407,8 +386,4 @@ const App: React.FC = () => {
     );
 };
 
-const AppWithAuth: React.FC = () => {
-    return <App />;
-}
-
-export default AppWithAuth;
+export default App;
