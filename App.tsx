@@ -40,7 +40,6 @@ const AppContent: React.FC = () => {
     });
     const { addToast } = useToast();
 
-    // 🌓 Sync theme class to HTML element
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -53,23 +52,23 @@ const AppContent: React.FC = () => {
 
     const toggleTheme = () => setIsDarkMode(prev => !prev);
 
-    // 🔐 Load Data & Persistent Session Check
+    // 🔐 UPDATED LOAD DATA - PERSISTENCE DISABLED FOR TESTING
     useEffect(() => {
         const loadData = async () => {
             setIsSyncing(true);
             try {
-                const userData = await db.getUser();
+                // We still load matches so the registry looks full
                 const matchesData = await db.getMatches();
-                
-                if (userData && userData.email) {
-                    setUser(userData);
-                    setIsLoggedIn(true);
-                    // Check if they finished onboarding (has images and name)
-                    if (!userData.name || userData.profileImageUrls.length === 0) {
-                        setActiveScreen('onboarding');
-                    }
-                }
                 setMatches(matchesData);
+                
+                // --- TEST MODE OVERRIDE ---
+                // We intentionally do NOT load the saved user.
+                // Every refresh starts fresh.
+                setIsLoggedIn(false);
+                setUser(null);
+                console.log("🛠️ Testing Mode: Persistence Disabled.");
+                // --------------------------
+
             } catch (error) {
                 console.error("Registry Load Error", error);
             } finally {
@@ -83,7 +82,6 @@ const AppContent: React.FC = () => {
         if (isSyncing) return;
         setIsSyncing(true);
         if (!isSilent) addToast("Syncing Registry...", "info");
-        
         try {
             const newMatches = await queryGlobalRegistry(6);
             if (newMatches.length > 0) {
@@ -98,14 +96,12 @@ const AppContent: React.FC = () => {
         }
     }, [isSyncing, addToast]);
 
-    // Infinite Scroll Logic
     useEffect(() => {
         const handleScroll = () => {
             if (activeScreen !== 'home') return;
             const scrollHeight = document.documentElement.scrollHeight;
             const scrollTop = document.documentElement.scrollTop;
             const clientHeight = document.documentElement.clientHeight;
-
             if (scrollTop + clientHeight >= scrollHeight - 300 && !isSyncing) {
                 fetchMoreFromGlobalRegistry(true);
             }
@@ -117,13 +113,10 @@ const AppContent: React.FC = () => {
     // 🔑 UPDATED AUTHENTICATION LOGIC
     const handleLogin = async (isNewUser: boolean = false, name?: string, email?: string) => {
         setIsSyncing(true);
-        
         try {
-            // 1. Admin Authorization Check
             if (email === 'admin@knot.ai') {
                 const adminUser = { ...CURRENT_USER, email: 'admin@knot.ai', name: 'Registry Admin' };
                 setUser(adminUser);
-                await db.saveUser(adminUser);
                 setIsLoggedIn(true);
                 setActiveScreen('admin');
                 addToast("Registry Admin Authorized", "success");
@@ -131,7 +124,6 @@ const AppContent: React.FC = () => {
             }
 
             if (isNewUser) {
-                // 2. Signup / Registry Activation
                 const newUserTemplate: User = {
                     ...CURRENT_USER,
                     id: `user_${Date.now()}`,
@@ -142,21 +134,16 @@ const AppContent: React.FC = () => {
                     profileImageUrls: [],
                 };
                 setUser(newUserTemplate);
-                await db.saveUser(newUserTemplate);
                 setIsLoggedIn(true);
                 setActiveScreen('onboarding');
                 addToast("Registry Record Created", "success");
             } else {
-                // 3. Regular Login Check
-                const existingUser = await db.getUser();
-                if (existingUser && existingUser.email === email) {
-                    setUser(existingUser);
-                    setIsLoggedIn(true);
-                    setActiveScreen('home');
-                    addToast("Member Access Granted", "success");
-                } else {
-                    addToast("Member record not found. Please join the registry.", "info");
-                }
+                // For testing, any login email works to let you in
+                const mockUser = { ...CURRENT_USER, email: email, name: name || 'Testing User' };
+                setUser(mockUser);
+                setIsLoggedIn(true);
+                setActiveScreen('home');
+                addToast("Member Access Granted (Test Mode)", "success");
             }
         } catch (error) {
             addToast("Authorization Error", "error");
@@ -247,7 +234,7 @@ const AppContent: React.FC = () => {
         if (window.confirm("Exit registry activation?")) {
             setIsLoggedIn(false);
             setUser(null);
-            localStorage.removeItem('knot_user'); // Clear session
+            localStorage.removeItem('knot_user'); 
             setActiveScreen('home');
         }
     };
@@ -297,8 +284,7 @@ const AppContent: React.FC = () => {
         }
 
         switch (activeScreen) {
-            case 'onboarding':
-                return <OnboardingFlow user={user} onComplete={handleSaveProfile} onCancel={handleCancelOnboarding} />;
+            case 'onboarding': return <OnboardingFlow user={user} onComplete={handleSaveProfile} onCancel={handleCancelOnboarding} />;
             case 'home':
                 return (
                     <div className="p-4 space-y-4 pb-32">
@@ -320,32 +306,16 @@ const AppContent: React.FC = () => {
                         )}
                     </div>
                 );
-            case 'discovery':
-                return <DiscoveryScreen matches={matches} user={user} onMatchClick={handleCardClick} onOpenFilters={() => setIsFilterModalOpen(true)} />;
-            case 'likes':
-                 return <LikesScreen likedMatches={[]} onMatchClick={handleCardClick} />;
-            case 'messages':
-                return <MessagesScreen onChatSelect={handleStartChat} user={user} />;
-            case 'profile':
-                return <ProfileCard 
-                    user={user} 
-                    onEditProfile={() => setActiveScreen('editProfile')} 
-                    onManagePhotos={() => setActiveScreen('managePhotos')}
-                    onVerifyProfile={() => setActiveScreen('verification')}
-                    onOpenAdmin={() => setActiveScreen('admin')}
-                />;
-            case 'verification':
-                return <VerificationScreen onVerificationComplete={handleVerificationComplete} onBack={handleBack} />;
-            case 'editProfile':
-                return <EditProfileScreen user={user} onBack={handleBack} onSave={handleSaveProfile} />;
-            case 'managePhotos':
-                return <PhotoManagerScreen user={user} onBack={handleBack} onUpdatePhotos={handleUpdatePhotos} />;
-            case 'payment':
-                return <PaymentScreen onBack={handleBack} onSubscribe={handleSubscribe} user={user} />;
-            case 'admin':
-                return <AdminScreen onBack={handleBack} />;
-            default:
-                return <div className="p-10 text-center">Screen Not Found</div>;
+            case 'discovery': return <DiscoveryScreen matches={matches} user={user} onMatchClick={handleCardClick} onOpenFilters={() => setIsFilterModalOpen(true)} />;
+            case 'likes': return <LikesScreen likedMatches={[]} onMatchClick={handleCardClick} />;
+            case 'messages': return <MessagesScreen onChatSelect={handleStartChat} user={user} />;
+            case 'profile': return <ProfileCard user={user} onEditProfile={() => setActiveScreen('editProfile')} onManagePhotos={() => setActiveScreen('managePhotos')} onVerifyProfile={() => setActiveScreen('verification')} onOpenAdmin={() => setActiveScreen('admin')} />;
+            case 'verification': return <VerificationScreen onVerificationComplete={handleVerificationComplete} onBack={handleBack} />;
+            case 'editProfile': return <EditProfileScreen user={user} onBack={handleBack} onSave={handleSaveProfile} />;
+            case 'managePhotos': return <PhotoManagerScreen user={user} onBack={handleBack} onUpdatePhotos={handleUpdatePhotos} />;
+            case 'payment': return <PaymentScreen onBack={handleBack} onSubscribe={handleSubscribe} user={user} />;
+            case 'admin': return <AdminScreen onBack={handleBack} />;
+            default: return <div className="p-10 text-center">Screen Not Found</div>;
         }
     };
     
@@ -356,11 +326,7 @@ const AppContent: React.FC = () => {
         <div className="max-w-md mx-auto bg-gray-50 dark:bg-brand-dark min-h-screen font-sans shadow-2xl overflow-x-hidden transition-colors">
             {showHeader && (
                 <div className="fixed top-0 left-0 right-0 max-w-md mx-auto z-50">
-                    <Header 
-                        onOpenFilters={() => setIsFilterModalOpen(true)} 
-                        isDarkMode={isDarkMode} 
-                        toggleTheme={toggleTheme} 
-                    />
+                    <Header onOpenFilters={() => setIsFilterModalOpen(true)} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
                     {isSyncing && (
                         <div className="h-0.5 w-full bg-brand-light dark:bg-gray-800 relative overflow-hidden">
                             <div className="absolute inset-0 bg-brand-primary dark:bg-brand-accent animate-progress-ind"></div>
@@ -369,13 +335,9 @@ const AppContent: React.FC = () => {
                 </div>
             )}
             
-            <main className={`${showHeader ? 'pt-[6rem]' : ''}`}>
-                {renderScreen()}
-            </main>
+            <main className={`${showHeader ? 'pt-[6rem]' : ''}`}>{renderScreen()}</main>
 
-            {showBottomNav && (
-                <BottomNav activeScreen={activeScreen} onNavigate={handleNavigate} />
-            )}
+            {showBottomNav && <BottomNav activeScreen={activeScreen} onNavigate={handleNavigate} />}
 
             <FilterModal 
                 isOpen={isFilterModalOpen} 
@@ -396,22 +358,17 @@ const AppContent: React.FC = () => {
             />
             
             <style>{`
-                @keyframes progress-ind {
-                    0% { left: -100%; width: 100%; }
-                    100% { left: 100%; width: 100%; }
-                }
+                @keyframes progress-ind { 0% { left: -100%; width: 100%; } 100% { left: 100%; width: 100%; } }
                 .animate-progress-ind { animation: progress-ind 1.5s infinite linear; }
             `}</style>
         </div>
     );
 };
 
-const App: React.FC = () => {
-    return (
-        <ToastProvider>
-            <AppContent />
-        </ToastProvider>
-    );
-};
+const App: React.FC = () => (
+    <ToastProvider>
+        <AppContent />
+    </ToastProvider>
+);
 
 export default App;
