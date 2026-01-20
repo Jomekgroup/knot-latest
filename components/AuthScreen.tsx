@@ -3,7 +3,7 @@ import { supabase } from '../services/databaseService';
 import { KnotLogo } from './KnotLogo';
 import { EnvelopeIcon } from './icons/EnvelopeIcon';
 import { GmailIcon } from './icons/GmailIcon';
-import { AppleIcon } from './icons/AppleIcon';
+// import { AppleIcon } from './icons/AppleIcon'; // No longer needed
 import axios from 'axios';
 
 interface AuthScreenProps {
@@ -18,72 +18,44 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- BACKEND SYNC LOGIC ---
-    // This ensures that when a user logs in via Google, your Render database gets the record
-    useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                const user = session.user;
-                
-                try {
-                    // Replace with your actual Render Backend URL
-                    await axios.post('https://your-backend-on-render.com/api/users/sync', {
-                        id: user.id,
-                        email: user.email,
-                        name: user.user_metadata?.full_name || user.user_metadata?.name,
-                        avatar_url: user.user_metadata?.avatar_url,
-                    });
-                    
-                    // Trigger the app's internal login state
-                    onLogin(user.user_metadata?.full_name, user.email);
-                } catch (error) {
-                    console.error("Registry Sync Error:", error);
-                    // Still log them in locally even if sync fails temporarily
-                    onLogin(user.user_metadata?.full_name, user.email);
-                }
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, [onLogin]);
-
-    // --- REAL AUTH ACTIONS ---
-
-    const handleSocialLogin = async (provider: 'google' | 'apple') => {
+    // --- FIX 2: Correct Social Login Logic ---
+    const handleSocialLogin = async (provider: 'google') => {
         setIsLoading(true);
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider,
-            options: {
-                redirectTo: window.location.origin, 
-            },
-        });
-
-        if (error) {
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    // This ensures it uses https://knot-latest.vercel.app when live
+                    redirectTo: window.location.origin, 
+                },
+            });
+            if (error) throw error;
+        } catch (error: any) {
             alert(error.message);
-            setIsLoading(false);
+            setIsLoading(false); // Only stop if it fails; if it works, the page redirects
         }
     };
 
+    // --- FIX 3: Email Auth with 'Finally' to stop spinner ---
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-
-        if (isLogin) {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) {
-                alert(error.message);
-            } else {
+        try {
+            if (isLogin) {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
                 onLogin(data.user?.user_metadata?.full_name, email);
-            }
-        } else {
-            const { data, error } = await supabase.auth.signUp({ email, password });
-            if (error) {
-                alert(error.message);
             } else {
+                const { data, error } = await supabase.auth.signUp({ email, password });
+                if (error) throw error;
                 onSignUp(undefined, email);
             }
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            // This stops the spinner regardless of success or failure
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     return (
@@ -117,14 +89,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
                     </form>
                 ) : (
                     <div className="space-y-4">
-                        <button onClick={() => handleSocialLogin('google')} className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-brand-dark dark:text-white font-bold py-4 rounded-2xl hover:shadow-md transition-all active:scale-95">
+                        {/* --- FIX 1: Apple Button Removed --- */}
+                        <button 
+                            onClick={() => handleSocialLogin('google')} 
+                            disabled={isLoading}
+                            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-brand-dark dark:text-white font-bold py-4 rounded-2xl hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
+                        >
                             <GmailIcon className="w-5 h-5" />
-                            Continue with Google
-                        </button>
-
-                        <button onClick={() => handleSocialLogin('apple')} className="w-full flex items-center justify-center gap-3 bg-brand-dark dark:bg-white text-white dark:text-brand-dark font-bold py-4 rounded-2xl hover:bg-black dark:hover:bg-gray-100 transition-all active:scale-95 shadow-lg">
-                            <AppleIcon className="w-5 h-5" />
-                            Continue with Apple
+                            {isLoading ? "Connecting..." : "Continue with Google"}
                         </button>
 
                         <div className="relative flex py-4 items-center">
@@ -133,7 +105,11 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
                             <div className="flex-grow border-t border-gray-100 dark:border-gray-800"></div>
                         </div>
 
-                        <button onClick={() => setShowEmailForm(true)} className="w-full flex items-center justify-center gap-3 bg-brand-light dark:bg-brand-primary/10 text-brand-primary dark:text-brand-accent font-bold py-4 rounded-2xl hover:bg-brand-primary hover:text-white transition-all active:scale-95">
+                        <button 
+                            onClick={() => setShowEmailForm(true)} 
+                            disabled={isLoading}
+                            className="w-full flex items-center justify-center gap-3 bg-brand-light dark:bg-brand-primary/10 text-brand-primary dark:text-brand-accent font-bold py-4 rounded-2xl hover:bg-brand-primary hover:text-white transition-all active:scale-95"
+                        >
                             <EnvelopeIcon className="w-5 h-5" />
                             Continue with Email
                         </button>
