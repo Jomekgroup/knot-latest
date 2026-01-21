@@ -5,6 +5,28 @@ import { SparklesIcon } from './icons/SparklesIcon';
 import { CloseIcon } from './icons/CloseIcon';
 import { COUNTRIES, STATES_BY_COUNTRY, CITIES_BY_STATE, MANUAL_ENTRY_VAL } from '../services/locationData';
 
+// --- IMAGE COMPRESSION UTILITY ---
+// This shrinks large mobile photos (like your 5.29MB one) to ~200KB
+const compressImage = (base64Str: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800; // Standard profile width
+      const scaleSize = MAX_WIDTH / img.width;
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scaleSize;
+
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      // Convert to JPEG with 0.7 quality for massive size reduction
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+  });
+};
+
 interface OnboardingFlowProps {
   user: User;
   onComplete: (updatedUser: User) => void;
@@ -20,7 +42,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, onCan
   const fileInputRef = useRef<HTMLInputElement>(null);
   const totalSteps = 4;
 
-  const handleNext = () => {
+  const handleNext = async () => { // Made async for compression
     // --- STEP 1 VALIDATION (Identity & Roots) ---
     if (step === 1) {
       if (!formData.name || formData.name.length < 2) {
@@ -47,16 +69,31 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, onCan
       setStep(step + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // --- FINAL DATA NORMALIZATION ---
-      // This ensures your "Match Filters" in App.tsx work by syncing nested data to top-level fields
-      const finalUser: User = {
-        ...formData,
-        city: formData.residenceCity,
-        country: formData.residenceCountry,
-        isVerified: false, // Default to false for new activations
-        lastActive: new Date().toISOString()
-      };
-      onComplete(finalUser);
+      setIsProcessing(true);
+      try {
+          // --- COMPRESS IMAGE BEFORE SAVING ---
+          let finalImageUrl = formData.profileImageUrls[0];
+          if (finalImageUrl && finalImageUrl.startsWith('data:image')) {
+              finalImageUrl = await compressImage(finalImageUrl);
+          }
+
+          // --- FINAL DATA NORMALIZATION ---
+          const finalUser: User = {
+            ...formData,
+            profileImageUrls: [finalImageUrl],
+            city: formData.residenceCity,
+            country: formData.residenceCountry,
+            isVerified: false,
+            lastActive: new Date().toISOString()
+          };
+          
+          onComplete(finalUser);
+      } catch (err) {
+          console.error("Compression failed", err);
+          alert("Image processing failed. Please try a different photo.");
+      } finally {
+          setIsProcessing(false);
+      }
     }
   };
 
@@ -99,6 +136,13 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, onCan
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Pre-check for extremely large files
+    if (file.size > 10 * 1024 * 1024) {
+        alert("File is too large (over 10MB). Please select a smaller photo.");
+        return;
+    }
+
     setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -346,8 +390,12 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, onCan
       {/* FOOTER NAVIGATION */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-white flex items-center gap-4 z-30 border-t border-gray-50">
         {step > 1 && <button onClick={handlePrev} className="px-8 py-4 rounded-2xl border border-gray-100 text-gray-400 font-bold hover:bg-gray-50 transition-all">Back</button>}
-        <button onClick={handleNext} className="flex-1 bg-brand-primary text-white font-black py-4 rounded-2xl text-lg hover:bg-brand-secondary transition-all shadow-xl shadow-brand-primary/30 active:scale-95">
-            {step === totalSteps ? 'Activate Registry' : 'Continue'}
+        <button 
+            disabled={isProcessing}
+            onClick={handleNext} 
+            className="flex-1 bg-brand-primary text-white font-black py-4 rounded-2xl text-lg hover:bg-brand-secondary transition-all shadow-xl shadow-brand-primary/30 active:scale-95 disabled:opacity-50"
+        >
+            {isProcessing ? 'Processing...' : step === totalSteps ? 'Activate Registry' : 'Continue'}
         </button>
       </div>
 
