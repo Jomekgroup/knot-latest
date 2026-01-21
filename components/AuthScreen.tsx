@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../services/databaseService';
 import { KnotLogo } from './KnotLogo';
 import { EnvelopeIcon } from './icons/EnvelopeIcon';
 import { GmailIcon } from './icons/GmailIcon';
-// import { AppleIcon } from './icons/AppleIcon'; // No longer needed
-import axios from 'axios';
 
 interface AuthScreenProps {
     onLogin: (name?: string, email?: string) => void;
@@ -18,25 +16,28 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- FIX 2: Correct Social Login Logic ---
+    // --- UPDATED: Social Login with Hash Routing Support ---
     const handleSocialLogin = async (provider: 'google') => {
         setIsLoading(true);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider,
                 options: {
-                    // This ensures it uses https://knot-latest.vercel.app when live
-                    redirectTo: window.location.origin, 
+                    /**
+                     * FIX: Added '/#/dashboard' to the origin.
+                     * For HashRouters, Supabase needs the token to land on a valid hash path 
+                     * otherwise it may default to the root and clear the session.
+                     */
+                    redirectTo: `${window.location.origin}/#/dashboard`,
                 },
             });
             if (error) throw error;
         } catch (error: any) {
             alert(error.message);
-            setIsLoading(false); // Only stop if it fails; if it works, the page redirects
+            setIsLoading(false); 
         }
     };
 
-    // --- FIX 3: Email Auth with 'Finally' to stop spinner ---
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -53,7 +54,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
         } catch (error: any) {
             alert(error.message);
         } finally {
-            // This stops the spinner regardless of success or failure
             setIsLoading(false);
         }
     };
@@ -89,7 +89,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignUp }) => {
                     </form>
                 ) : (
                     <div className="space-y-4">
-                        {/* --- FIX 1: Apple Button Removed --- */}
                         <button 
                             onClick={() => handleSocialLogin('google')} 
                             disabled={isLoading}

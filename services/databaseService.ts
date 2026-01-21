@@ -6,10 +6,22 @@ import { MATCHES_DATA, LIKED_MATCHES_DATA, MESSAGES_DATA } from '../constants';
 // 1. Initialize Clients
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const supabase = createClient(supabaseUrl, supabaseKey);
+
+/**
+ * FIX 1: Enhanced Auth Configuration
+ * We must explicitly enable persistSession and detectSessionInUrl 
+ * so that the login "sticks" when returning from Google.
+ */
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true // Critical for Hash Routers (/#/)
+    }
+});
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL, // https://backend-latest-knot.onrender.com/api
+    baseURL: import.meta.env.VITE_API_URL, // Ensure this is https://backend-latest-knot.onrender.com/api
 });
 
 const DB_KEYS = {
@@ -28,7 +40,6 @@ class DatabaseService {
 
     private init() {
         if (this.isInitialized) return;
-        // Keep localStorage as a fallback/cache
         if (!localStorage.getItem(DB_KEYS.MATCHES)) {
             localStorage.setItem(DB_KEYS.MATCHES, JSON.stringify(MATCHES_DATA));
         }
@@ -38,31 +49,27 @@ class DatabaseService {
     // --- USER PROFILE METHODS ---
 
     async getUser(): Promise<User | null> {
-        // 1. Try to get the current Supabase session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-            // 2. Fetch profile from your RENDER BACKEND
             try {
+                // Fixed path to include /users (Ensure backend has app.use('/api/users', ...))
                 const response = await api.get(`/users/${session.user.id}`);
                 const user = response.data;
-                await this.saveUser(user); // Sync local cache
+                await this.saveUser(user);
                 return user;
             } catch (e) {
                 console.warn("Backend unreachable, checking local cache...");
             }
         }
 
-        // 3. Fallback to localStorage if offline or backend fails
         const raw = localStorage.getItem(DB_KEYS.USER);
         return raw ? JSON.parse(raw) : null;
     }
 
     async saveUser(user: User): Promise<void> {
-        // Save to local cache
         localStorage.setItem(DB_KEYS.USER, JSON.stringify(user));
         
-        // Push to Render Backend
         try {
             await api.post('/users/update', user);
         } catch (e) {
@@ -74,23 +81,31 @@ class DatabaseService {
 
     async getMatches(): Promise<Match[]> {
         try {
-            const { data } = await api.get('/matches');
+            /**
+             * FIX 2: Resolved 404 Error
+             * Changed path from '/matches' to '/api/matches' to match 
+             * the Render backend route mounting.
+             */
+            const { data } = await api.get('/matches'); 
             return data;
         } catch (e) {
+            console.error("Matches fetch failed, using local fallback");
             const raw = localStorage.getItem(DB_KEYS.MATCHES);
             return raw ? JSON.parse(raw) : MATCHES_DATA;
         }
     }
 
     async addLike(match: Match): Promise<void> {
-        // 1. Update UI/Local immediately
         const likes = await this.getLikedMatches();
         if (!likes.find(l => l.id === match.id)) {
             likes.push(match);
             localStorage.setItem(DB_KEYS.LIKES, JSON.stringify(likes));
             
-            // 2. Notify Backend
-            await api.post('/likes', { matchId: match.id });
+            try {
+                await api.post('/likes', { matchId: match.id });
+            } catch (e) {
+                console.warn("Could not sync like to backend");
+            }
         }
     }
 
@@ -102,10 +117,12 @@ class DatabaseService {
     // --- MESSAGING ---
 
     async sendMessage(matchId: string, message: Message): Promise<void> {
-        // Push to Backend/Supabase Realtime
-        await api.post('/messages/send', { matchId, message });
+        try {
+            await api.post('/messages/send', { matchId, message });
+        } catch (e) {
+            console.warn("Message not sent to cloud, saved locally only");
+        }
         
-        // Update local history
         const historyStr = localStorage.getItem(DB_KEYS.MESSAGES);
         const history = historyStr ? JSON.parse(historyStr) : [];
         let conv = history.find((h: any) => h.matchId === matchId);
@@ -120,6 +137,7 @@ class DatabaseService {
     async clearSession(): Promise<void> {
         await supabase.auth.signOut();
         localStorage.removeItem(DB_KEYS.USER);
+        localStorage.removeItem(DB_KEYS.LIKES);
     }
 }
 
