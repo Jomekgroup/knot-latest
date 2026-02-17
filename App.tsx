@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Match, Screen, FilterState, SmokingHabits, DrinkingHabits, MaritalStatus, WillingToRelocate, ChildrenPreference } from './types';
 import { INITIAL_FILTERS, CURRENT_USER } from './constants';
@@ -36,10 +37,13 @@ const AppContent: React.FC = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('knot_theme');
+        // Default to light mode (false) if no preference is saved.
         return saved === 'dark';
     });
     const { addToast } = useToast();
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // Sync theme class to HTML element
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -52,28 +56,12 @@ const AppContent: React.FC = () => {
 
     const toggleTheme = () => setIsDarkMode(prev => !prev);
 
-    // 🔐 UPDATED LOAD DATA - PERSISTENCE DISABLED FOR TESTING
     useEffect(() => {
         const loadData = async () => {
-            setIsSyncing(true);
-            try {
-                // We still load matches so the registry looks full
-                const matchesData = await db.getMatches();
-                setMatches(matchesData);
-                
-                // --- TEST MODE OVERRIDE ---
-                // We intentionally do NOT load the saved user.
-                // Every refresh starts fresh.
-                setIsLoggedIn(false);
-                setUser(null);
-                console.log("🛠️ Testing Mode: Persistence Disabled.");
-                // --------------------------
-
-            } catch (error) {
-                console.error("Registry Load Error", error);
-            } finally {
-                setIsSyncing(false);
-            }
+            const userData = await db.getUser();
+            const matchesData = await db.getMatches();
+            setUser(userData);
+            setMatches(matchesData);
         };
         loadData();
     }, []);
@@ -82,6 +70,7 @@ const AppContent: React.FC = () => {
         if (isSyncing) return;
         setIsSyncing(true);
         if (!isSilent) addToast("Syncing Registry...", "info");
+        
         try {
             const newMatches = await queryGlobalRegistry(6);
             if (newMatches.length > 0) {
@@ -96,59 +85,75 @@ const AppContent: React.FC = () => {
         }
     }, [isSyncing, addToast]);
 
+    // Infinite Scroll Logic
     useEffect(() => {
         const handleScroll = () => {
             if (activeScreen !== 'home') return;
+            
             const scrollHeight = document.documentElement.scrollHeight;
             const scrollTop = document.documentElement.scrollTop;
             const clientHeight = document.documentElement.clientHeight;
+
             if (scrollTop + clientHeight >= scrollHeight - 300 && !isSyncing) {
                 fetchMoreFromGlobalRegistry(true);
             }
         };
+
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [activeScreen, isSyncing, fetchMoreFromGlobalRegistry]);
 
-    // 🔑 UPDATED AUTHENTICATION LOGIC
-    const handleLogin = async (isNewUser: boolean = false, name?: string, email?: string) => {
-        setIsSyncing(true);
-        try {
-            if (email === 'admin@knot.ai') {
-                const adminUser = { ...CURRENT_USER, email: 'admin@knot.ai', name: 'Registry Admin' };
-                setUser(adminUser);
+    useEffect(() => {
+        if (isLoggedIn && activeScreen === 'home' && matches.length < 5) {
+            fetchMoreFromGlobalRegistry(true);
+        }
+    }, [isLoggedIn, activeScreen, matches.length, fetchMoreFromGlobalRegistry]);
+
+    const handleLogin = (isNewUser: boolean = false, name?: string, email?: string) => {
+        if (isNewUser) {
+            const newUserTemplate: User = {
+                ...CURRENT_USER,
+                id: `user_${Date.now()}`,
+                name: name || '', 
+                email: email,
+                bio: '',
+                age: 25,
+                isVerified: false,
+                isPremium: false,
+                profileImageUrls: [],
+                personalValues: [],
+                occupation: '',
+                marriageTimeline: '1-2 years',
+                maritalStatus: MaritalStatus.NeverMarried,
+                childrenPreference: ChildrenPreference.OpenToChildren,
+                willingToRelocate: WillingToRelocate.Maybe,
+                residenceCountry: '',
+                residenceState: '',
+                residenceCity: '',
+                originCountry: '',
+                originState: '',
+                originCity: '',
+                culturalBackground: '',
+                city: '',
+                country: ''
+            };
+            setUser(newUserTemplate);
+            db.saveUser(newUserTemplate);
+            setIsLoggedIn(true);
+            setActiveScreen('onboarding');
+        } else {
+            const isAdmin = email === 'admin@knot.ai';
+            if (isAdmin) {
+                setUser(CURRENT_USER);
+                db.saveUser(CURRENT_USER);
+                addToast("Admin Dashboard Authorized", "success");
                 setIsLoggedIn(true);
                 setActiveScreen('admin');
-                addToast("Registry Admin Authorized", "success");
-                return;
-            }
-
-            if (isNewUser) {
-                const newUserTemplate: User = {
-                    ...CURRENT_USER,
-                    id: `user_${Date.now()}`,
-                    name: name || '', 
-                    email: email,
-                    isVerified: false,
-                    isPremium: false,
-                    profileImageUrls: [],
-                };
-                setUser(newUserTemplate);
-                setIsLoggedIn(true);
-                setActiveScreen('onboarding');
-                addToast("Registry Record Created", "success");
             } else {
-                // For testing, any login email works to let you in
-                const mockUser = { ...CURRENT_USER, email: email, name: name || 'Testing User' };
-                setUser(mockUser);
                 setIsLoggedIn(true);
                 setActiveScreen('home');
-                addToast("Member Access Granted (Test Mode)", "success");
+                addToast("Directory Access Granted", "success");
             }
-        } catch (error) {
-            addToast("Authorization Error", "error");
-        } finally {
-            setIsSyncing(false);
         }
     };
 
@@ -204,25 +209,26 @@ const AppContent: React.FC = () => {
         setActiveScreen('payment');
     };
 
-    const handleSubscribe = async () => {
+    const handleSubscribe = () => {
         if (user) {
             const updated: User = { 
                 ...user, 
                 isPremium: true,
                 subscriptionAmount: 7.00,
-                subscriptionDate: new Date().toLocaleDateString(),
+                subscriptionDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                subscriptionPeriod: 'Custom'
             };
             setUser(updated);
-            await db.saveUser(updated);
+            db.saveUser(updated);
         }
-        addToast('Premium Activated!', 'success');
+        addToast('Welcome to Premium!', 'success');
         setActiveScreen('likes'); 
     };
 
-    const handleSaveProfile = async (updatedUser: User) => {
+    const handleSaveProfile = (updatedUser: User) => {
         setUser(updatedUser);
-        await db.saveUser(updatedUser);
-        addToast('Registry Updated', 'success');
+        db.saveUser(updatedUser);
+        addToast('Directory Updated', 'success');
         if (activeScreen === 'onboarding') {
             setActiveScreen('home');
         } else {
@@ -234,25 +240,24 @@ const AppContent: React.FC = () => {
         if (window.confirm("Exit registry activation?")) {
             setIsLoggedIn(false);
             setUser(null);
-            localStorage.removeItem('knot_user'); 
             setActiveScreen('home');
         }
     };
 
-    const handleVerificationComplete = async () => {
+    const handleVerificationComplete = () => {
         if (user) {
             const updated = {...user, isVerified: true};
             setUser(updated);
-            await db.saveUser(updated);
+            db.saveUser(updated);
         }
         setActiveScreen('profile');
     };
 
-    const handleUpdatePhotos = async (photos: string[]) => {
+    const handleUpdatePhotos = (photos: string[]) => {
         if (user) {
             const updated = {...user, profileImageUrls: photos};
             setUser(updated);
-            await db.saveUser(updated);
+            db.saveUser(updated);
         }
         addToast('Photos Updated', 'success');
         handleBack();
@@ -284,7 +289,8 @@ const AppContent: React.FC = () => {
         }
 
         switch (activeScreen) {
-            case 'onboarding': return <OnboardingFlow user={user} onComplete={handleSaveProfile} onCancel={handleCancelOnboarding} />;
+            case 'onboarding':
+                return <OnboardingFlow user={user} onComplete={handleSaveProfile} onCancel={handleCancelOnboarding} />;
             case 'home':
                 return (
                     <div className="p-4 space-y-4 pb-32">
@@ -298,6 +304,7 @@ const AppContent: React.FC = () => {
                                 <button onClick={() => setFilters(INITIAL_FILTERS)} className="mt-4 text-brand-primary dark:text-brand-accent font-black uppercase text-[10px] tracking-widest underline">Reset Filters</button>
                             </div>
                         )}
+                        
                         {isSyncing && (
                             <div className="pt-6 pb-4 flex flex-col items-center">
                                 <div className="w-6 h-6 border-2 border-brand-primary dark:border-brand-accent border-t-transparent rounded-full animate-spin"></div>
@@ -306,16 +313,32 @@ const AppContent: React.FC = () => {
                         )}
                     </div>
                 );
-            case 'discovery': return <DiscoveryScreen matches={matches} user={user} onMatchClick={handleCardClick} onOpenFilters={() => setIsFilterModalOpen(true)} />;
-            case 'likes': return <LikesScreen likedMatches={[]} onMatchClick={handleCardClick} />;
-            case 'messages': return <MessagesScreen onChatSelect={handleStartChat} user={user} />;
-            case 'profile': return <ProfileCard user={user} onEditProfile={() => setActiveScreen('editProfile')} onManagePhotos={() => setActiveScreen('managePhotos')} onVerifyProfile={() => setActiveScreen('verification')} onOpenAdmin={() => setActiveScreen('admin')} />;
-            case 'verification': return <VerificationScreen onVerificationComplete={handleVerificationComplete} onBack={handleBack} />;
-            case 'editProfile': return <EditProfileScreen user={user} onBack={handleBack} onSave={handleSaveProfile} />;
-            case 'managePhotos': return <PhotoManagerScreen user={user} onBack={handleBack} onUpdatePhotos={handleUpdatePhotos} />;
-            case 'payment': return <PaymentScreen onBack={handleBack} onSubscribe={handleSubscribe} user={user} />;
-            case 'admin': return <AdminScreen onBack={handleBack} />;
-            default: return <div className="p-10 text-center">Screen Not Found</div>;
+            case 'discovery':
+                return <DiscoveryScreen matches={matches} user={user} onMatchClick={handleCardClick} onOpenFilters={() => setIsFilterModalOpen(true)} />;
+            case 'likes':
+                 return <LikesScreen likedMatches={[]} onMatchClick={handleCardClick} />;
+            case 'messages':
+                return <MessagesScreen onChatSelect={handleStartChat} user={user} />;
+            case 'profile':
+                return <ProfileCard 
+                    user={user} 
+                    onEditProfile={() => setActiveScreen('editProfile')} 
+                    onManagePhotos={() => setActiveScreen('managePhotos')}
+                    onVerifyProfile={() => setActiveScreen('verification')}
+                    onOpenAdmin={() => setActiveScreen('admin')}
+                />;
+            case 'verification':
+                return <VerificationScreen onVerificationComplete={handleVerificationComplete} onBack={handleBack} />;
+            case 'editProfile':
+                return <EditProfileScreen user={user} onBack={handleBack} onSave={handleSaveProfile} />;
+            case 'managePhotos':
+                return <PhotoManagerScreen user={user} onBack={handleBack} onUpdatePhotos={handleUpdatePhotos} />;
+            case 'payment':
+                return <PaymentScreen onBack={handleBack} onSubscribe={handleSubscribe} user={user} />;
+            case 'admin':
+                return <AdminScreen onBack={handleBack} />;
+            default:
+                return <div className="p-10 text-center">Screen Not Found</div>;
         }
     };
     
@@ -326,7 +349,11 @@ const AppContent: React.FC = () => {
         <div className="max-w-md mx-auto bg-gray-50 dark:bg-brand-dark min-h-screen font-sans shadow-2xl overflow-x-hidden transition-colors">
             {showHeader && (
                 <div className="fixed top-0 left-0 right-0 max-w-md mx-auto z-50">
-                    <Header onOpenFilters={() => setIsFilterModalOpen(true)} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+                    <Header 
+                        onOpenFilters={() => setIsFilterModalOpen(true)} 
+                        isDarkMode={isDarkMode} 
+                        toggleTheme={toggleTheme} 
+                    />
                     {isSyncing && (
                         <div className="h-0.5 w-full bg-brand-light dark:bg-gray-800 relative overflow-hidden">
                             <div className="absolute inset-0 bg-brand-primary dark:bg-brand-accent animate-progress-ind"></div>
@@ -335,9 +362,13 @@ const AppContent: React.FC = () => {
                 </div>
             )}
             
-            <main className={`${showHeader ? 'pt-[6rem]' : ''}`}>{renderScreen()}</main>
+            <main className={`${showHeader ? 'pt-[6rem]' : ''}`}>
+                {renderScreen()}
+            </main>
 
-            {showBottomNav && <BottomNav activeScreen={activeScreen} onNavigate={handleNavigate} />}
+            {showBottomNav && (
+                <BottomNav activeScreen={activeScreen} onNavigate={handleNavigate} />
+            )}
 
             <FilterModal 
                 isOpen={isFilterModalOpen} 
@@ -358,17 +389,26 @@ const AppContent: React.FC = () => {
             />
             
             <style>{`
-                @keyframes progress-ind { 0% { left: -100%; width: 100%; } 100% { left: 100%; width: 100%; } }
+                @keyframes progress-ind {
+                    0% { left: -100%; width: 100%; }
+                    100% { left: 100%; width: 100%; }
+                }
                 .animate-progress-ind { animation: progress-ind 1.5s infinite linear; }
             `}</style>
         </div>
     );
 };
 
-const App: React.FC = () => (
-    <ToastProvider>
-        <AppContent />
-    </ToastProvider>
-);
+const App: React.FC = () => {
+    return (
+        <ToastProvider>
+            <AppContent />
+        </ToastProvider>
+    );
+};
 
-export default App;
+const AppWithAuth: React.FC = () => {
+    return <App />;
+}
+
+export default AppWithAuth;

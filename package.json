@@ -9,14 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.25.0",
-    "@supabase/supabase-js": "^2.91.0",
-    "axios": "^1.13.2",
-    "cors": "^2.8.5",
-    "crypto": "^1.0.1",
-    "express": "^5.2.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "@google/genai": "^1.25.0",
+    "cors": "^2.8.5",
+    "axios": "^1.13.2",
+    "express": "^5.2.1",
+    "crypto": "^1.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
